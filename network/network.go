@@ -7,20 +7,21 @@ import (
 	"io"
 	"log"
 	"net"
-	"strconv"
+	"strcon"
 	"time"
 
-	Block "github.com/RedBrickBurrito/pos-blockchain/blockchain"
-	Blockchain "github.com/RedBrickBurrito/pos-blockchain/blockchain"
+	"github.com/RedBrickBurrito/pos-blockchain/blockchain"
+	
 )
 
-func handleConn(conn net.Conn) {
+
+func HandleConn(conn net.Conn) {
 	defer conn.Close()
-	validators := Blockchain.Validators
-	mutex := Blockchain.Mutex
+	validators := blockchain.Validators
+	mutex := blockchain.Mutex
 
 	go func() {
-		announcements := Blockchain.Announcements
+		announcements := blockchain.Announcements
 
 		for {
 			msg := <-announcements
@@ -65,7 +66,7 @@ func handleConn(conn net.Conn) {
 				oldLastIndex := Blockchain[len(Blockchain)-1]
 				mutex.Unlock()
 
-				newBlock, err := Block.CreateBlock(oldLastIndex, bpm, address)
+				newBlock, err := blockchain.CreateBlock(oldLastIndex, bpm, address)
 				if err != nil {
 					log.Println(err)
 					continue
@@ -82,7 +83,7 @@ func handleConn(conn net.Conn) {
 	for {
 		time.Sleep(time.Minute)
 		mutex.Lock()
-		output, err := json.Marshal(Blockchain.Blockchain)
+		output, err := json.Marshal(blockchain)
 		mutex.Unlock()
 		if err != nil {
 			log.Fatal(err)

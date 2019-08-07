@@ -1,14 +1,13 @@
 package main
 
-import "log"
+import (
+	"os"
+
+	"github.com/RedBrickBurrito/pos-blockchain/cli"
+)
 
 func main() {
-	err := godotenv.Load()
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	t := time.Now()
-	genesisBlock := Block{}
-	
+	defer os.Exit(0)
+	cmd := cli.CommandLine{}
+	cmd.Run()
 }
