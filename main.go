@@ -19,7 +19,6 @@ import (
 	"github.com/joho/godotenv"
 )
 
-// Block represents each 'item' in the blockchain
 type Block struct {
 	Index     int
 	Timestamp string
@@ -29,23 +28,17 @@ type Block struct {
 	Validator string
 }
 
-// Blockchain is a series of validated Blocks
 var Blockchain []Block
 var tempBlocks []Block
 
-// candidateBlocks handles incoming blocks for validation
 var candidateBlocks = make(chan Block)
 
-// announcements broadcasts winning validator to all nodes
 var announcements = make(chan string)
 
 var mutex = &sync.Mutex{}
 
-// validators keeps track of open validators and balances
 var validators = make(map[string]int)
 
-// SHA256 hasing
-// calculateHash is a simple SHA256 hashing function
 func calculateHash(s string) string {
 	h := sha256.New()
 	h.Write([]byte(s))
@@ -53,13 +46,11 @@ func calculateHash(s string) string {
 	return hex.EncodeToString(hashed)
 }
 
-//calculateBlockHash returns the hash of all block information
 func calculateBlockHash(block Block) string {
 	record := string(block.Index) + block.Timestamp + string(block.BPM) + block.PrevHash
 	return calculateHash(record)
 }
 
-// generateBlock creates a new block using previous block's hash
 func generateBlock(oldBlock Block, BPM int, address string) (Block, error) {
 
 	var newBlock Block
@@ -76,8 +67,6 @@ func generateBlock(oldBlock Block, BPM int, address string) (Block, error) {
 	return newBlock, nil
 }
 
-// isBlockValid makes sure block is valid by checking index
-// and comparing the hash of the previous block
 func isBlockValid(newBlock, oldBlock Block) bool {
 	if oldBlock.Index+1 != newBlock.Index {
 		return false
@@ -128,10 +117,8 @@ func handleConn(conn net.Conn) {
 
 	go func() {
 		for {
-			// take in BPM from stdin and add it to blockchain after conducting necessary validation
 			for scanBPM.Scan() {
 				bpm, err := strconv.Atoi(scanBPM.Text())
-				// if malicious party tries to mutate the chain with a bad input, delete them as a validator and they lose their staked tokens
 				if err != nil {
 					log.Printf("%v not a number: %v", scanBPM.Text(), err)
 					delete(validators, address)
@@ -142,7 +129,6 @@ func handleConn(conn net.Conn) {
 				oldLastIndex := Blockchain[len(Blockchain)-1]
 				mutex.Unlock()
 
-				// create newBlock for consideration to be forged
 				newBlock, err := generateBlock(oldLastIndex, bpm, address)
 				if err != nil {
 					log.Println(err)
@@ -156,7 +142,6 @@ func handleConn(conn net.Conn) {
 		}
 	}()
 
-	// simulate receiving broadcast
 	for {
 		time.Sleep(time.Minute)
 		mutex.Lock()
@@ -170,8 +155,6 @@ func handleConn(conn net.Conn) {
 
 }
 
-// pickWinner creates a lottery pool of validators and chooses the validator who gets to forge a block to the blockchain
-// by random selecting from the pool, weighted by amount of tokens staked
 func pickWinner() {
 	time.Sleep(30 * time.Second)
 	mutex.Lock()
@@ -181,19 +164,14 @@ func pickWinner() {
 	lotteryPool := []string{}
 	if len(temp) > 0 {
 
-		// slightly modified traditional proof of stake algorithm
-		// from all validators who submitted a block, weight them by the number of staked tokens
-		// in traditional proof of stake, validators can participate without submitting a block to be forged
 	OUTER:
 		for _, block := range temp {
-			// if already in lottery pool, skip
 			for _, node := range lotteryPool {
 				if block.Validator == node {
 					continue OUTER
 				}
 			}
 
-			// lock list of validators to prevent data race
 			mutex.Lock()
 			setValidators := validators
 			mutex.Unlock()
@@ -206,12 +184,10 @@ func pickWinner() {
 			}
 		}
 
-		// randomly pick winner from lottery pool
 		s := rand.NewSource(time.Now().Unix())
 		r := rand.New(s)
 		lotteryWinner := lotteryPool[r.Intn(len(lotteryPool))]
 
-		// add block of winner to blockchain and let all the other nodes know
 		for _, block := range temp {
 			if block.Validator == lotteryWinner {
 				mutex.Lock()
@@ -236,14 +212,12 @@ func main() {
 		log.Fatal(err)
 	}
 
-	// create genesis block
 	t := time.Now()
 	genesisBlock := Block{}
 	genesisBlock = Block{0, t.String(), 0, calculateBlockHash(genesisBlock), "", ""}
 	spew.Dump(genesisBlock)
 	Blockchain = append(Blockchain, genesisBlock)
 
-	// start TCP and serve TCP server
 	server, err := net.Listen("tcp", ":"+os.Getenv("ADDR"))
 	if err != nil {
 		log.Fatal(err)
